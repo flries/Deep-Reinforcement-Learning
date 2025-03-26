@@ -1,4 +1,4 @@
-# HW1_Gridworld Environment 
+# HW1-1_Grid Map Development
 
 ## Project Introduction
 An interactive grid where users can define a grid size (between 5 and 9) and designate specific cells as the start point (green), end point (red), and obstacles (grey).
@@ -40,11 +40,10 @@ Any modern web browser *(Chrome, Firefox, Safari, etc.)*
 3. **Run the Application:**    
    Navigate to the project directory in your terminal.    
    Start the Flask server by running:
-   ```bash
+   ```python
    python app.py
    ```
    The server will start in debug mode and listen on the default port (5000).
 
 4. **Access the Application:**    
-   Open your web browser.    
-   Navigate to http://127.0.0.1:5000/
+   Open your web browser and navigate to http://127.0.0.1:5000/
