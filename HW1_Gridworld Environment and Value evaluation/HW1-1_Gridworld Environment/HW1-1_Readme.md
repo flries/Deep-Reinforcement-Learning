@@ -47,3 +47,7 @@ Any modern web browser *(Chrome, Firefox, Safari, etc.)*
 
 4. **Access the Application:**    
    Open your web browser and navigate to http://127.0.0.1:5000/
+
+## Program Result
+![HW1-1_Result_01](https://github.com/user-attachments/assets/f2b32fe4-a769-4183-9634-d4b01b39a5f2)
+![HW1-1_Result_02](https://github.com/user-attachments/assets/c62e2b5e-231c-4982-8dee-9261b722a084)
