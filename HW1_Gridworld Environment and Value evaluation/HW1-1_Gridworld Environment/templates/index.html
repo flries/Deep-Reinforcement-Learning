@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive n x n Square</title>
+    <!-- Include jQuery from CDN -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: "Times New Roman", Times, serif;
+            margin: 20px;
+            color: black;
+        }
+        h2, h3, label, li {
+            margin: 0;
+            padding: 0;
+        }
+        .input-section {
+            margin: 10px 0 20px 0;
+        }
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        td {
+            width: 40px;
+            height: 40px;
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            color: black;
+        }
+        /* Cell states */
+        .start {
+            background-color: green;
+        }
+        .end {
+            background-color: red;
+        }
+        .obstacle {
+            background-color: grey;
+        }
+    </style>
+</head>
+<body>
+    <h2>Generate n x n Square</h2>
+    <div class="input-section">
+        <form method="POST">
+            <!-- Updated label text -->
+            <label for="n">Enter a number between 5 and 9:</label>
+            <input type="number" id="n" name="n" value="{{ n }}">
+            <button type="submit">Generate Square</button>
+        </form>
+    </div>
+
+    {% if show_grid %}
+        <h3>{{ n }} x {{ n }} Square:</h3>
+        <ol>
+            <li>Click on a cell to set up the start grid (green) or the end grid (red).</li>
+            <li>
+                After placing start and end, click additional cells for obstacles (grey).
+                You have <span id="remaining-obstacles">{{ n - 2 }}</span> obstacle(s) available.
+            </li>
+            <li>Clicking an already marked cell will remove its designation.</li>
+        </ol>
+
+        <table id="grid-table">
+            {% for row in range(n) %}
+            <tr>
+                {% for col in range(n) %}
+                <!-- Use Jinja expression for row-major numbering -->
+                <td data-cellnum="{{ row*n + col + 1 }}">
+                    <strong>{{ row*n + col + 1 }}</strong>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <script>
+        {% if show_grid %}
+        // Variables to track selections
+        let startSelected = false;
+        let endSelected = false;
+        let obstacleCount = 0;
+        let obstacleLimit = {{ n - 2 }};
+
+        // Function to update the remaining obstacles display
+        function updateRemainingObstacles() {
+            $('#remaining-obstacles').text(obstacleLimit - obstacleCount);
+        }
+
+        // Initialize the remaining obstacles text
+        updateRemainingObstacles();
+
+        $('#grid-table td').click(function() {
+            let $cell = $(this);
+
+            // Toggle removal if already set
+            if ($cell.hasClass('start')) {
+                $cell.removeClass('start');
+                startSelected = false;
+                return;
+            }
+            if ($cell.hasClass('end')) {
+                $cell.removeClass('end');
+                endSelected = false;
+                return;
+            }
+            if ($cell.hasClass('obstacle')) {
+                $cell.removeClass('obstacle');
+                obstacleCount--;
+                updateRemainingObstacles();
+                return;
+            }
+
+            // Assign new designations
+            if (!startSelected) {
+                $cell.addClass('start');
+                startSelected = true;
+            } else if (!endSelected) {
+                $cell.addClass('end');
+                endSelected = true;
+            } else {
+                // Only allow adding obstacles if limit not reached
+                if (obstacleCount < obstacleLimit) {
+                    $cell.addClass('obstacle');
+                    obstacleCount++;
+                    updateRemainingObstacles();
+                } else {
+                    alert('You have already placed ' + obstacleLimit + ' obstacle(s).');
+                }
+            }
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

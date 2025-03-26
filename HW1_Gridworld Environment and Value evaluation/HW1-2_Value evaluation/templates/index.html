@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gridworld Environment and Value Evaluation</title>
+    <!-- Include jQuery from CDN -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body { 
+            font-family: "Times New Roman", Times, serif; 
+            margin: 20px; 
+            color: black; 
+        }
+        h2, h3, label, li { margin: 0; padding: 0; }
+        .input-section { margin: 10px 0 20px 0; }
+        table { 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+        }
+        td { 
+            width: 40px; 
+            height: 40px; 
+            border: 1px solid black; 
+            text-align: center; 
+            vertical-align: middle; 
+            cursor: pointer; 
+            color: black; 
+        }
+        /* Cell states */
+        .start { background-color: green; }
+        .end { background-color: red; }
+        .obstacle { background-color: grey; }
+        /* Layout: side-by-side matrices */
+        #matrix-container { display: flex; margin-top: 20px; }
+        .matrix { margin-right: 20px; }
+    </style>
+</head>
+<body>
+    <h2>Generate n x n Square</h2>
+    <!-- Input section -->
+    <div class="input-section">
+        <label for="n">Enter a number between 5 and 9:</label>
+        <input type="number" id="n" name="n" value="5" min="5" max="9">
+        <button id="generate-btn" type="button">Generate Square</button>
+    </div>
+    
+    <!-- Display header and instructions -->
+    <h2 id="square-header">5 x 5 Square:</h2>
+    <ol id="instructions">
+        <li>Click on a cell to set up the start grid (green) or the end grid (red).</li>
+        <li>After placing start and end, click additional cells for obstacles (grey). You have <span id="remaining-obstacles">3</span> obstacle(s) available.</li>
+        <li>Clicking an already marked cell will remove its designation.</li>
+    </ol>
+    
+    <!-- Matrices container -->
+    <div id="matrix-container">
+        <div id="policy-matrix" class="matrix">
+            <h3>Policy Matrix</h3>
+            <div id="grid-container"></div>
+        </div>
+        <div id="value-matrix" class="matrix">
+            <h3>Value Matrix</h3>
+            <!-- The Value Matrix table will be inserted here -->
+        </div>
+    </div>
+    
+    <script>
+    // Global variables for cell designations and state.
+    let startSelected = false;
+    let endSelected = false;
+    let obstacleCount = 0;
+    let obstacleLimit = 3; // For n = 5 initially.
+    let generated = false; // Flag indicating whether matrices have been generated.
+    const gamma = 0.9; // Discount factor for value iteration
+
+    // Build the default grid based on input n.
+    function generateGrid() {
+        let n = parseInt($('#n').val());
+        if(n < 5) n = 5;
+        if(n > 9) n = 9;
+        $('#n').val(n);
+        obstacleLimit = n - 2;
+        obstacleCount = 0;
+        startSelected = false;
+        endSelected = false;
+        generated = false;
+        
+        // Update header and obstacle counter.
+        $('#square-header').text(n + ' x ' + n + ' Square:');
+        $('#remaining-obstacles').text(obstacleLimit - obstacleCount);
+        
+        // Clear any existing grid and value matrix.
+        $('#grid-container').empty();
+        $('#value-matrix').empty().append('<h3>Value Matrix</h3>');
+        
+        // Create a new grid table.
+        let table = $('<table id="grid-table"></table>');
+        for(let i = 0; i < n; i++){
+            let row = $('<tr></tr>');
+            for(let j = 0; j < n; j++){
+                let cellNum = i * n + j + 1;
+                let td = $('<td></td>')
+                            .attr('data-row', i)
+                            .attr('data-col', j)
+                            .attr('data-cellnum', cellNum)
+                            .html('<strong>' + cellNum + '</strong>');
+                row.append(td);
+            }
+            table.append(row);
+        }
+        $('#grid-container').append(table);
+        
+        // Bind click event for cell designation.
+        $('#grid-table td').off('click').on('click', function() {
+            let $cell = $(this);
+            // Remove designation if already set.
+            if ($cell.hasClass('start')) {
+                $cell.removeClass('start');
+                startSelected = false;
+                return;
+            }
+            if ($cell.hasClass('end')) {
+                $cell.removeClass('end');
+                endSelected = false;
+                return;
+            }
+            if ($cell.hasClass('obstacle')) {
+                $cell.removeClass('obstacle');
+                obstacleCount--;
+                updateRemainingObstacles();
+                return;
+            }
+            // Otherwise, assign designations in order.
+            if (!startSelected) {
+                $cell.addClass('start');
+                startSelected = true;
+            } else if (!endSelected) {
+                $cell.addClass('end');
+                endSelected = true;
+            } else {
+                if(obstacleCount < obstacleLimit) {
+                    $cell.addClass('obstacle');
+                    obstacleCount++;
+                    updateRemainingObstacles();
+                } else {
+                    alert('You have already placed ' + obstacleLimit + ' obstacle(s).');
+                }
+            }
+        });
+    }
+    
+    // Update the displayed number of obstacles remaining.
+    function updateRemainingObstacles() {
+        $('#remaining-obstacles').text(obstacleLimit - obstacleCount);
+    }
+    
+    // Given a cell at (row, col), determine allowed arrow directions
+    // based on walls and proximity to the start and end cells.
+    function getAllowedDirections(row, col, n, start, end) {
+        let allowed = ['↑', '↓', '←', '→'];
+        // Wall restrictions.
+        if(row === 0) allowed = allowed.filter(d => d !== '↑');
+        if(row === n - 1) allowed = allowed.filter(d => d !== '↓');
+        if(col === 0) allowed = allowed.filter(d => d !== '←');
+        if(col === n - 1) allowed = allowed.filter(d => d !== '→');
+        // Avoid pointing toward the start if adjacent.
+        if (Math.abs(row - start.row) + Math.abs(col - start.col) === 1) {
+            let dx = start.row - row, dy = start.col - col;
+            if(dx === 1) allowed = allowed.filter(d => d !== '↓');
+            else if(dx === -1) allowed = allowed.filter(d => d !== '↑');
+            if(dy === 1) allowed = allowed.filter(d => d !== '→');
+            else if(dy === -1) allowed = allowed.filter(d => d !== '←');
+        }
+        // If adjacent to the end, force the arrow to point toward it.
+        if (Math.abs(row - end.row) + Math.abs(col - end.col) === 1) {
+            let dx = end.row - row, dy = end.col - col;
+            let forced;
+            if(dx === 1) forced = '↓'; 
+            else if(dx === -1) forced = '↑';
+            if(dy === 1) forced = '→';
+            else if(dy === -1) forced = '←';
+            if (allowed.includes(forced)) return [forced];
+        }
+        // Fallback if no allowed direction remains.
+        if (allowed.length === 0) {
+            allowed = [];
+            if(row > 0) allowed.push('↑');
+            if(row < n - 1) allowed.push('↓');
+            if(col > 0) allowed.push('←');
+            if(col < n - 1) allowed.push('→');
+        }
+        return allowed;
+    }
+    
+    // Given a cell's row, col, and its chosen arrow, return possible next states
+    // along with their probabilities: intended direction (0.8) and two perpendicular directions (0.1 each).
+    function getNextStates(row, col, arrow, n) {
+        let outcomes = [];
+        let intended, alt1, alt2;
+        if (arrow === '↑') {
+            intended = { row: (row - 1 >= 0 ? row - 1 : row), col: col, prob: 0.8 };
+            alt1 = { row: row, col: (col - 1 >= 0 ? col - 1 : col), prob: 0.1 };
+            alt2 = { row: row, col: (col + 1 < n ? col + 1 : col), prob: 0.1 };
+        } else if (arrow === '↓') {
+            intended = { row: (row + 1 < n ? row + 1 : row), col: col, prob: 0.8 };
+            alt1 = { row: row, col: (col - 1 >= 0 ? col - 1 : col), prob: 0.1 };
+            alt2 = { row: row, col: (col + 1 < n ? col + 1 : col), prob: 0.1 };
+        } else if (arrow === '←') {
+            intended = { row: row, col: (col - 1 >= 0 ? col - 1 : col), prob: 0.8 };
+            alt1 = { row: (row - 1 >= 0 ? row - 1 : row), col: col, prob: 0.1 };
+            alt2 = { row: (row + 1 < n ? row + 1 : row), col: col, prob: 0.1 };
+        } else if (arrow === '→') {
+            intended = { row: row, col: (col + 1 < n ? col + 1 : col), prob: 0.8 };
+            alt1 = { row: (row - 1 >= 0 ? row - 1 : row), col: col, prob: 0.1 };
+            alt2 = { row: (row + 1 < n ? row + 1 : row), col: col, prob: 0.1 };
+        }
+        outcomes.push(intended, alt1, alt2);
+        // Combine outcomes that refer to the same cell.
+        let combined = {};
+        outcomes.forEach(function(o) {
+            let key = o.row + ',' + o.col;
+            if (combined[key]) {
+                combined[key].prob += o.prob;
+            } else {
+                combined[key] = { row: o.row, col: o.col, prob: o.prob };
+            }
+        });
+        return Object.values(combined);
+    }
+    
+    // Compute the Value Matrix using the policy evaluation equation:
+    // V(s) = R(s) + γ ∑ P(s′ | s, a) V(s′)
+    function computeValueMatrix(n) {
+        // Initialize value grid V to zeros.
+        let V = [];
+        for(let i = 0; i < n; i++){
+            V[i] = [];
+            for(let j = 0; j < n; j++){
+                V[i][j] = 0;
+            }
+        }
+        
+        // Set up the reward grid.
+        // Default reward for a move: -1.
+        // End cell: +10.
+        // Obstacle: -6 (i.e., -1 for move and -5 extra).
+        let rewards = [];
+        for(let i = 0; i < n; i++){
+            rewards[i] = [];
+            for(let j = 0; j < n; j++){
+                rewards[i][j] = -1;
+            }
+        }
+        $('#grid-table td').each(function(){
+            let row = parseInt($(this).attr('data-row'));
+            let col = parseInt($(this).attr('data-col'));
+            if ($(this).hasClass('end')) {
+                rewards[row][col] = 10;
+            } else if ($(this).hasClass('obstacle')) {
+                rewards[row][col] = -6;
+            }
+        });
+        
+        // Value iteration until convergence.
+        let threshold = 0.001;
+        let maxDelta = Infinity;
+        while(maxDelta > threshold) {
+            maxDelta = 0;
+            let newV = [];
+            for(let i = 0; i < n; i++){
+                newV[i] = [];
+                for(let j = 0; j < n; j++){
+                    let cell = $('#grid-table td[data-row="'+i+'"][data-col="'+j+'"]');
+                    // For terminal cells (end and obstacle), value equals reward.
+                    if(cell.hasClass('end') || cell.hasClass('obstacle')){
+                        newV[i][j] = rewards[i][j];
+                    } else {
+                        let arrow = cell.attr('data-arrow');
+                        let outcomes = getNextStates(i, j, arrow, n);
+                        let expectedValue = 0;
+                        outcomes.forEach(function(o){
+                            expectedValue += o.prob * V[o.row][o.col];
+                        });
+                        newV[i][j] = rewards[i][j] + gamma * expectedValue;
+                    }
+                    let delta = Math.abs(newV[i][j] - V[i][j]);
+                    if(delta > maxDelta) { maxDelta = delta; }
+                }
+            }
+            V = newV;
+        }
+        return V;
+    }
+    
+    // Generate the Value Matrix table from the computed V(s).
+    function generateValueMatrixTable(V) {
+        let n = V.length;
+        let table = $('<table id="value-table"></table>');
+        for(let i = 0; i < n; i++){
+            let row = $('<tr></tr>');
+            for(let j = 0; j < n; j++){
+                let td = $('<td></td>').text(V[i][j].toFixed(2));
+                row.append(td);
+            }
+            table.append(row);
+        }
+        return table;
+    }
+    
+    // Transform the default grid into the Policy Matrix and compute the Value Matrix.
+    function generateMatrices() {
+        let n = parseInt($('#n').val());
+        if(!startSelected || !endSelected) {
+            alert('Please select both a start (green) and an end (red) cell.');
+            return;
+        }
+        // Remove click handlers so that cell designations are fixed.
+        $('#grid-table td').off('click');
+        
+        // Identify the start and end cells.
+        let start = null, end = null;
+        $('#grid-table td').each(function(){
+            if($(this).hasClass('start')){
+                start = { row: parseInt($(this).attr('data-row')), col: parseInt($(this).attr('data-col')) };
+            }
+            if($(this).hasClass('end')){
+                end = { row: parseInt($(this).attr('data-row')), col: parseInt($(this).attr('data-col')) };
+            }
+        });
+        if(!start || !end) {
+            alert('Start or end cell not found.');
+            return;
+        }
+        
+        // For each cell, assign an arrow following allowed directions and update display.
+        $('#grid-table td').each(function(){
+            let $cell = $(this);
+            let row = parseInt($cell.attr('data-row'));
+            let col = parseInt($cell.attr('data-col'));
+            let allowed = getAllowedDirections(row, col, n, start, end);
+            let chosenArrow = allowed[Math.floor(Math.random() * allowed.length)];
+            // Store the arrow in a data attribute for later value computation.
+            $cell.attr('data-arrow', chosenArrow);
+            
+            // Update display based on cell type.
+            if($cell.hasClass('start')){
+                $cell.text('S');
+            } else if($cell.hasClass('end')){
+                $cell.text('E');
+            } else if($cell.hasClass('obstacle')){
+                $cell.text('');
+            } else {
+                $cell.text(chosenArrow);
+            }
+        });
+        
+        // Update header text for the Policy Matrix.
+        $('#policy-matrix h3').text('Policy Matrix');
+        
+        // Compute the Value Matrix using the policy evaluation equation.
+        let V = computeValueMatrix(n);
+        let valueTable = generateValueMatrixTable(V);
+        $('#value-matrix').empty().append('<h3>Value Matrix</h3>').append(valueTable);
+        
+        generated = true;
+    }
+    
+    // On page load, generate the default grid.
+    $(document).ready(function(){
+        generateGrid();
+        $('#n').on('change', function(){
+            generateGrid();
+        });
+        $('#generate-btn').on('click', function(){
+            if(!generated) {
+                generateMatrices();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
