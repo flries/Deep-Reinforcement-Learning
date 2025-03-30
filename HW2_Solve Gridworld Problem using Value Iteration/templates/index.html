@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gridworld Interactive Value Iteration</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <style>
+    body {
+      font-family: "Times New Roman", Times, serif;
+      margin: 20px;
+      color: black;
+    }
+    h2, h3, label, li { margin: 0; padding: 0; }
+    .input-section { margin: 10px 0 20px 0; }
+    table {
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    td {
+      width: 40px;
+      height: 40px;
+      border: 1px solid black;
+      text-align: center;
+      vertical-align: middle;
+      cursor: pointer;
+      position: relative;
+    }
+    .start { background-color: green; }
+    .end { background-color: red; }
+    .obstacle { background-color: grey; }
+    /* Highlight styles for the best path */
+    .current-path {
+      background-color: yellow !important;
+    }
+    .optimal-path {
+      background-color: orange !important;
+    }
+    #matrix-container { display: flex; margin-top: 20px; }
+    .matrix { margin-right: 20px; }
+    .cell-value {
+      font-size: 10px;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      color: blue;
+    }
+    .cell-policy {
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Generate n x n Grid</h2>
+  <div class="input-section">
+    <label for="n">Enter a number between 5 and 9:</label>
+    <input type="number" id="n" name="n" value="5" min="5" max="9">
+    <button id="generate-btn" type="button">Generate Grid</button>
+    <button id="compute-btn" type="button">Compute Policy</button>
+  </div>
+  <h2 id="square-header">5 x 5 Grid:</h2>
+  <ol id="instructions">
+    <li>Click on a cell to set the start (green) and end (red) points.</li>
+    <li>After selecting start and end, click cells to add obstacles (grey).</li>
+    <li>Click an already marked cell to remove its designation.</li>
+  </ol>
+  <div id="matrix-container">
+    <div id="policy-matrix" class="matrix">
+      <h3>Policy Grid</h3>
+      <div id="grid-container"></div>
+    </div>
+    <div id="value-matrix" class="matrix">
+      <h3>Value Matrix</h3>
+      <div id="value-container"></div>
+    </div>
+  </div>
+  <script>
+  let startSelected = false;
+  let endSelected = false;
+  let obstacleCount = 0;
+  let obstacleLimit = 3;
+  let gridGenerated = false;
+  let animationInterval = null;
+  
+  // Generate grid and bind cell click events.
+  function generateGrid() {
+    let n = parseInt($('#n').val());
+    if(n < 5) n = 5;
+    if(n > 9) n = 9;
+    $('#n').val(n);
+    obstacleLimit = n - 2;
+    obstacleCount = 0;
+    startSelected = false;
+    endSelected = false;
+    gridGenerated = true;
+    
+    $('#square-header').text(n + ' x ' + n + ' Grid:');
+    $('#grid-container').empty();
+    $('#value-container').empty();
+    
+    let table = $('<table id="grid-table"></table>');
+    for(let i = 0; i < n; i++){
+      let row = $('<tr></tr>');
+      for(let j = 0; j < n; j++){
+        let td = $('<td></td>')
+                  .attr('data-row', i)
+                  .attr('data-col', j)
+                  .attr('data-default', i*n+j+1)
+                  .html('<div class="cell-policy">' + (i*n+j+1) + '</div><div class="cell-value"></div>');
+        row.append(td);
+      }
+      table.append(row);
+    }
+    $('#grid-container').append(table);
+    
+    $('#grid-table td').off('click').on('click', function() {
+      let $cell = $(this);
+      if ($cell.hasClass('start')) {
+        $cell.removeClass('start');
+        $cell.find('.cell-policy').text($cell.attr('data-default'));
+        startSelected = false;
+        return;
+      }
+      if ($cell.hasClass('end')) {
+        $cell.removeClass('end');
+        $cell.find('.cell-policy').text($cell.attr('data-default'));
+        endSelected = false;
+        return;
+      }
+      if ($cell.hasClass('obstacle')) {
+        $cell.removeClass('obstacle');
+        $cell.find('.cell-policy').text($cell.attr('data-default'));
+        obstacleCount--;
+        return;
+      }
+      if (!startSelected) {
+        $cell.addClass('start');
+        $cell.find('.cell-policy').text('S');
+        startSelected = true;
+      } else if (!endSelected) {
+        $cell.addClass('end');
+        $cell.find('.cell-policy').text('E');
+        endSelected = true;
+      } else {
+        if(obstacleCount < obstacleLimit) {
+          $cell.addClass('obstacle');
+          $cell.find('.cell-policy').text('');
+          obstacleCount++;
+        } else {
+          alert('Maximum obstacles reached.');
+        }
+      }
+    });
+  }
+  
+  // Gather grid configuration as a 2D array.
+  function getGridConfiguration() {
+    let n = parseInt($('#n').val());
+    let grid = [];
+    $('#grid-table tr').each(function(i) {
+      let row = [];
+      $(this).find('td').each(function(j) {
+        if($(this).hasClass('start')) {
+          row.push('start');
+        } else if($(this).hasClass('end')) {
+          row.push('end');
+        } else if($(this).hasClass('obstacle')) {
+          row.push('obstacle');
+        } else {
+          row.push('empty');
+        }
+      });
+      grid.push(row);
+    });
+    return { n: n, grid: grid };
+  }
+  
+  // Compute the best path from the start cell following the current policy snapshot.
+  // Returns an array of [row, col] coordinates.
+  function getBestPath(snap) {
+    let path = [];
+    let n = snap.V.length;
+    let startCoord = null;
+    $('#grid-table td').each(function() {
+      if ($(this).hasClass('start')) {
+         let row = parseInt($(this).attr('data-row'));
+         let col = parseInt($(this).attr('data-col'));
+         startCoord = [row, col];
+         return false; // break out of loop
+      }
+    });
+    if (!startCoord) return path;
+    path.push(startCoord);
+    let visited = {};
+    visited[startCoord.join(',')] = true;
+    let current = startCoord;
+    while (true) {
+      let i = current[0], j = current[1];
+      let action = snap.policy[i][j];
+      if (!action) break;
+      let next;
+      if(action === '↑') {
+        next = [Math.max(i - 1, 0), j];
+      } else if(action === '↓') {
+        next = [Math.min(i + 1, n - 1), j];
+      } else if(action === '←') {
+        next = [i, Math.max(j - 1, 0)];
+      } else if(action === '→') {
+        next = [i, Math.min(j + 1, n - 1)];
+      } else {
+        break;
+      }
+      let key = next.join(',');
+      if (visited[key]) break; // prevent loops
+      path.push(next);
+      visited[key] = true;
+      let $cell = $('#grid-table td[data-row="'+next[0]+'"][data-col="'+next[1]+'"]');
+      if($cell.hasClass('end')) break;
+      current = next;
+    }
+    return path;
+  }
+  
+  // Animate the snapshots received from the backend.
+  function animateSnapshots(snapshots) {
+    let index = 0;
+    if(animationInterval) clearInterval(animationInterval);
+    animationInterval = setInterval(function(){
+      if(index >= snapshots.length) {
+        clearInterval(animationInterval);
+        return;
+      }
+      let snap = snapshots[index];
+      updateGridWithSnapshot(snap);
+      index++;
+    }, 500);
+  }
+  
+  // Update grid cells and value display based on the current snapshot.
+  // Also recalculate and highlight the best path:
+  // — use yellow (current-path) if not converged,
+  // — use orange (optimal-path) when the snapshot is flagged as converged.
+  function updateGridWithSnapshot(snap) {
+    let n = snap.V.length;
+    let valueTable = $('<table></table>');
+    for(let i = 0; i < n; i++){
+      let row = $('<tr></tr>');
+      for(let j = 0; j < n; j++){
+        let td = $('<td></td>').text(snap.V[i][j].toFixed(2));
+        row.append(td);
+      }
+      valueTable.append(row);
+    }
+    $('#value-container').empty().append(valueTable);
+    
+    // Update grid cell text values.
+    $('#grid-table td').each(function() {
+      let i = parseInt($(this).attr('data-row'));
+      let j = parseInt($(this).attr('data-col'));
+      if($(this).hasClass('start')) {
+        $(this).find('.cell-policy').text('S');
+      } else if($(this).hasClass('end')) {
+        $(this).find('.cell-policy').text('E');
+      } else if($(this).hasClass('obstacle')) {
+        $(this).find('.cell-policy').text('');
+      } else {
+        $(this).find('.cell-policy').text(snap.policy[i][j]);
+      }
+      $(this).find('.cell-value').text(snap.V[i][j].toFixed(2));
+    });
+    
+    // Remove previous path highlights.
+    $('#grid-table td').removeClass('current-path optimal-path');
+    
+    // Compute the current best path.
+    let path = getBestPath(snap);
+    // If snapshot is converged, highlight the final path in orange.
+    let highlightClass = snap.converged ? 'optimal-path' : 'current-path';
+    path.forEach(function(coord) {
+      $('#grid-table td[data-row="'+coord[0]+'"][data-col="'+coord[1]+'"]').addClass(highlightClass);
+    });
+  }
+  
+  $(document).ready(function(){
+    generateGrid();
+    $('#n').on('change', generateGrid);
+    $('#generate-btn').on('click', generateGrid);
+    $('#compute-btn').on('click', function(){
+      if(!startSelected || !endSelected) {
+        alert('Please select start and end cells.');
+        return;
+      }
+      let config = getGridConfiguration();
+      $.ajax({
+        url: '/compute',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(config),
+        success: function(response) {
+          if(response.snapshots) {
+            animateSnapshots(response.snapshots);
+          }
+        },
+        error: function(xhr) {
+          alert('Error: ' + xhr.responseJSON.error);
+        }
+      });
+    });
+  });
+  </script>
+</body>
+</html>
