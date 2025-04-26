@@ -73,16 +73,19 @@ estimated_means[arm] += (reward - estimated_means[arm]) / arm_counts[arm]
 rewards.append(reward)
 ```
 *   **Average cumulative rewards** over time (convergence).
+![HW3-3_Softmax_Result](https://github.com/user-attachments/assets/9b346d26-8895-444b-935d-25561112d1e9)
+
 * * *
 
 4\. Spatial and Temporal Analysis
 ---------------------------------
-
+![HW3-3_Softmax_Spatial](https://github.com/user-attachments/assets/ab8e8318-f98c-4b61-9e5e-8b4baef9032b)
 **Spatial Analysis:**
 
 *   Shows how often each arm was picked.
 *   Arms with better estimated rewards are selected more frequently.
 
+![HW3-3_Softmax_Temporal](https://github.com/user-attachments/assets/f3a7ced2-2dd3-4b9c-9765-9fce3fd0a782)
 **Temporal Analysis:**
 
 *   Early on: More diversity (high exploration if  $\tau$  is reasonable).
