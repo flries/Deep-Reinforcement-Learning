@@ -100,21 +100,19 @@ plt.scatter(range(num_iterations), selected_arms, s=10)
 plt.title('Temporal Analysis: Arm Selection Over Time (Thompson Sampling)')
 ```
 *   **Average cumulative rewards** over time (convergence).
-    
-*   **Spatial analysis** (how many times each arm was selected).
-    
-*   **Temporal analysis** (how the choices evolved over time).
+![HW3-4_Thompson Sampling_Result](https://github.com/user-attachments/assets/548d4ade-6d6c-41e8-a5ca-a30344cd5e19)
 
 * * *
 
 4\. Spatial and Temporal Analysis
 ---------------------------------
-
+![HW3-4_Thompson Sampling_Spatial](https://github.com/user-attachments/assets/b6801a2a-30ab-4750-bead-baf1fd076722)
 **Spatial Analysis:**
 
 *   Displays how often each arm was selected.
 *   The best arm should dominate after sufficient exploration.
-
+  
+![HW3-4_Thompson Sampling_Temporal](https://github.com/user-attachments/assets/2ee9e05f-9261-4720-9049-666f7243c044)
 **Temporal Analysis**:
 
 *   Early rounds show random exploration.
