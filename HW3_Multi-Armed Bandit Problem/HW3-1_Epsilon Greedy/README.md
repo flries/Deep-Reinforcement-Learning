@@ -70,16 +70,18 @@ selected_arms.append(arm)
 
 ```
 *   **Average cumulative rewards** over time (convergence).
+![HW3-1_Epsilon Greedy_Result](https://github.com/user-attachments/assets/c4cfb449-1096-4214-9c18-83a1b8eea2c6)
 * * *
 
 4\. Spatial and Temporal Analysis
 ---------------------------------
-
+![HW3-1_Epsilon Greedy_Spatial](https://github.com/user-attachments/assets/fd3dda17-0494-47c8-bde3-70fe53d385b4)
 **Spatial Analysis:**
 
 *   Shows which arms were chosen the most.
 *   Ideally, the best arm should dominate after enough exploration.
-
+  
+![HW3-1_Epsilon Greedy_Temporal](https://github.com/user-attachments/assets/fe82d075-f2c9-435a-acc3-800f5282cddd)
 **Temporal Analysis:**
 
 *   Early stages: More random, many arms explored.
