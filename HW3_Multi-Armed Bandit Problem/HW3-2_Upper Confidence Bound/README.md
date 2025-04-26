@@ -85,16 +85,18 @@ plt.show()
 
 ```
 *   **Average cumulative rewards** over time (convergence).
+![HW3-2_Upper Confidence Bound_Result](https://github.com/user-attachments/assets/f890e444-60d3-4d7a-aa54-d3ea4fdbfc30)
 * * *
 
 4\. Spatial and Temporal Analysis
 ---------------------------------
-
+![HW3-2_Upper Confidence Bound_Spatial](https://github.com/user-attachments/assets/3c72bcb2-5135-48b6-8347-788686256431)
 **Spatial Analysis:**
 
 *   Shows how often each arm was chosen.
 *   Ideally, the best arm (highest true mean) gets selected the most after sufficient trials.
 
+![HW3-2_Upper Confidence Bound_Temporal](https://github.com/user-attachments/assets/e1b1e537-4bf0-4caf-996d-326509d570a7)
 **Temporal Analysis:**
 
 *   Early iterations: More variation and exploration.
