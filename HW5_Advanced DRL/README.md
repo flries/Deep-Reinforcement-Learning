@@ -1,6 +1,6 @@
-## Gradient Surgery for Multi-Task Learning
-> **來源網址：** https://paperswithcode.com/paper/gradient-surgery-for-multi-task-learning-1
-> **論文網址：** https://arxiv.org/pdf/2001.06782v4.pdf
+## HW5_Advanced DRL: Gradient Surgery for Multi-Task Learning
+> **來源網址：** https://paperswithcode.com/paper/gradient-surgery-for-multi-task-learning-1  
+> **論文網址：** https://arxiv.org/pdf/2001.06782v4.pdf  
 > **程式網址：** https://github.com/WeiChengTseng/Pytorch-PCGrad
 
 這篇論文《Gradient Surgery for Multi-Task Learning》提出了一種名為「PCGrad」（Projected Conflicting Gradients）的技術，旨在解決多任務學習（Multi-Task Learning, MTL）中常見的梯度衝突問題。以下是對該論文的簡要解釋：
@@ -112,12 +112,14 @@ PCGrad 的主要思路是——**如果兩個任務的梯度方向衝突，就�
 
 ### 📉 訓練損失分析
 
+![loss_left](https://github.com/user-attachments/assets/f9579755-bd00-4647-b776-19471bbf1d1c)
 #### 左任務（Training Loss - Left Digit）
 *   初始 loss 約為 1.75
 *   前 20 epoch 急速下降，顯示模型迅速學會特徵
 *   最終穩定於約 **0.60**
 *   曲線平滑無過擬合現象
 
+![loss_right](https://github.com/user-attachments/assets/cb0f3144-7b74-49fa-8c34-eebf382dd28a)
 #### 右任務（Training Loss - Right Digit）
 *   趨勢與左任務類似，但中後段震盪稍大
 *   收斂速度稍慢，最終 loss 穩定在約 **0.65–0.7**
@@ -128,10 +130,12 @@ PCGrad 的主要思路是——**如果兩個任務的梯度方向衝突，就�
 
 ### 📈 驗證準確率分析
 
+![acc_left](https://github.com/user-attachments/assets/52a81da0-0a03-42fe-b0ac-ace635e464a4)
 #### 左任務（Validation Accuracy - Left Digit）
 *   準確率穩定上升，最終收斂於 **約 91%**
 *   上升趨勢平滑，無大波動
 
+![acc_right](https://github.com/user-attachments/assets/89ae1597-e4bd-4a12-aa70-849d40755316)
 #### 右任務（Validation Accuracy - Right Digit）
 *   同樣快速提升，最終收斂於 **約 89%**
 *   稍低於左任務，推測任務難度或樣本特徵略有差異
@@ -140,6 +144,7 @@ PCGrad 的主要思路是——**如果兩個任務的梯度方向衝突，就�
 
 ### 📊 混淆矩陣分析
 
+![confusion_left](https://github.com/user-attachments/assets/1d3f86f7-bd2d-48eb-8b4a-c3dd6e45dedd)
 #### 左任務（Confusion Matrix - Left Digit）
 *   對角線分布明顯，準確性良好
 *   較常誤判：
@@ -147,6 +152,7 @@ PCGrad 的主要思路是——**如果兩個任務的梯度方向衝突，就�
     *   8 → 1（2 次） 
 *   主要錯誤來自相似字型的混淆（如 2 vs 9）
 
+![confusion_right](https://github.com/user-attachments/assets/a5aa5d05-e372-4b27-b592-b316d7e9e380)
 #### 右任務（Confusion Matrix - Right Digit）
 *   分布同樣集中於對角線
 *   較分散誤判情形出現在類別 9
@@ -154,6 +160,7 @@ PCGrad 的主要思路是——**如果兩個任務的梯度方向衝突，就�
     
 ---
 
+![frame_100](https://github.com/user-attachments/assets/9651dae1-3136-468b-b799-03f71bfe4dc1)
 ### 📊 綜合曲線圖（Loss + Accuracy）
 *   **Loss 曲線**：左任務（藍）與右任務（橘）皆收斂良好
 *   **Accuracy 曲線**：左任務（綠）略高，右任務（紅）稍低，但穩定
